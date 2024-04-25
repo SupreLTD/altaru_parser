@@ -1,9 +1,7 @@
 import asyncio
 from asyncio import Semaphore
-from pprint import pprint
 
-from bs4 import BeautifulSoup
-from httpx import AsyncClient, Response
+from httpx import AsyncClient
 
 from .config import HEADERS, COOKIES
 from .utils import get_links, get_data
