@@ -4,7 +4,7 @@ from asyncio import Semaphore
 from httpx import AsyncClient
 
 from .config import HEADERS, COOKIES
-from .utils import get_links, get_data
+from .utils import get_links, get_data, write_to_excel
 
 
 async def main():
@@ -20,3 +20,5 @@ async def main():
         links.extend(raw_links)
         tasks = [asyncio.create_task(get_data(semaphore, session, link)) for link in links]
         await asyncio.gather(*tasks)
+
+        await write_to_excel()

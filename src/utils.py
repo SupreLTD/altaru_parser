@@ -1,15 +1,17 @@
 import asyncio
+import os
 import re
 from asyncio import Semaphore
 from bs4 import BeautifulSoup
 from httpx import AsyncClient, Response
 from loguru import logger
 from tenacity import retry, wait_fixed
+import pandas as pd
 
 import phonenumbers
 from phonenumbers import geocoder
 
-from .db_client import insert_data
+from .db_client import get_customs, insert_customs
 
 
 @retry(wait=wait_fixed(0.2))
@@ -68,4 +70,17 @@ async def get_data(semaphore: Semaphore, session: AsyncClient, url: str):
 
         email, phone = extract_contacts(field_data)
 
-        await asyncio.create_task(insert_data(name, inn, field_data, phone, email))
+        await asyncio.create_task(insert_customs(name, inn, field_data, phone, email))
+
+
+async def write_to_excel() -> None:
+    src_path = os.path.dirname(__file__)
+    data_path = os.path.join(src_path, '../data')
+    if not os.path.exists(data_path):
+        os.mkdir(data_path)
+
+    data = await get_customs()
+    columns = ['Бренд', 'ИНН', 'Контактное лицо', 'Телефон', 'Email']
+
+    df = pd.DataFrame(data, columns=columns)
+    df.to_excel(f'{data_path}/data.xlsx', index=False)
