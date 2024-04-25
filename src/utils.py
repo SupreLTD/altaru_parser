@@ -1,8 +1,15 @@
+import asyncio
+import re
 from asyncio import Semaphore
 from bs4 import BeautifulSoup
 from httpx import AsyncClient, Response
 from loguru import logger
 from tenacity import retry, wait_fixed
+
+import phonenumbers
+from phonenumbers import geocoder
+
+from .db_client import insert_data
 
 
 @retry(wait=wait_fixed(0.2))
@@ -22,17 +29,43 @@ async def get_links(semaphore: Semaphore, session: AsyncClient, url: str) -> lis
         return links
 
 
+def extract_contacts(text: str) -> tuple[str, str]:
+    all_phone_numbers = phonenumbers.PhoneNumberMatcher(text, "RU")
+    extracted_numbers = []
+
+    for match in all_phone_numbers:
+        phone_number = match.number
+
+        # Проверка на валидность номера телефона
+        if phonenumbers.is_valid_number(phone_number):
+            # Нормализация номера телефона в международном формате
+            normalized_number = phonenumbers.format_number(phone_number, phonenumbers.PhoneNumberFormat.INTERNATIONAL)
+
+            if normalized_number not in extracted_numbers:
+                extracted_numbers.append(normalized_number)
+
+    email_pattern = r"[\w\.-]+@[\w\.-]+"
+    emails = re.findall(email_pattern, text)
+    emails = ', '.join(set(emails))
+    numbers = ', '.join(extracted_numbers)
+
+    return emails, numbers
+
+
 async def get_data(semaphore: Semaphore, session: AsyncClient, url: str):
     async with semaphore:
         res = await get_response(session, url)
         soup = BeautifulSoup(res.text, 'lxml')
-        title_and_in = soup.find('h1').split()
-        name = ' '.join(title_and_in[:-1])
-        inn = title_and_in[-1]
+        name_and_inn = soup.find('h1').text.split()
+        name = ' '.join(name_and_inn[:-1])
+        inn = name_and_inn[-1]
         table = soup.find_all('tr')
+        field_data = ''
         for tr in table:
-            if tr.text == 'Доверенные лица правообладателя':
-                print(tr.next.text)
 
+            if tr.text.strip() == 'Доверенные лица правообладателя':
+                field_data = tr.find_next('tr').text.strip()
 
+        email, phone = extract_contacts(field_data)
 
+        await asyncio.create_task(insert_data(name, inn, field_data, phone, email))
