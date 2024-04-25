@@ -18,5 +18,5 @@ HEADERS = {
     'Sec-Fetch-User': '?1',
 }
 COOKIES = {
-    'PHPSESSID': 'i3a7mi01qjk8upat15v8hlopef',
+    'PHPSESSID': '02knkde1i9dus3bk7l4eb5jvoj',
 }

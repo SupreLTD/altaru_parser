@@ -20,3 +20,19 @@ async def get_links(semaphore: Semaphore, session: AsyncClient, url: str) -> lis
         links = soup.find_all('a', class_='d-block mt5')
         links = [f"https://www.alta.ru{i['href']}" for i in links]
         return links
+
+
+async def get_data(semaphore: Semaphore, session: AsyncClient, url: str):
+    async with semaphore:
+        res = await get_response(session, url)
+        soup = BeautifulSoup(res.text, 'lxml')
+        title_and_in = soup.find('h1').split()
+        name = ' '.join(title_and_in[:-1])
+        inn = title_and_in[-1]
+        table = soup.find_all('tr')
+        for tr in table:
+            if tr.text == 'Доверенные лица правообладателя':
+                print(tr.next.text)
+
+
+
